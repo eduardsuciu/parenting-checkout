@@ -53,6 +53,26 @@ exports.handler = async (event) => {
     }
 
     if (paymentIntent.status === 'succeeded') {
+      // Notify GHL workflow — creates contact + sends confirmation email
+      const firstName = name.split(' ')[0];
+      const lastName = name.split(' ').slice(1).join(' ') || '';
+      try {
+        await fetch('https://services.leadconnectorhq.com/hooks/Hk9YnLAZCME5Y2kjNRp4/webhook-trigger/b327d5c4-1e71-468f-ac8d-cad93d465da5', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firstName,
+            lastName,
+            email,
+            name,
+            product: 'Parenting Unlocked',
+            amount: '147'
+          })
+        });
+      } catch (webhookErr) {
+        console.error('GHL webhook error:', webhookErr);
+      }
+
       return {
         statusCode: 200,
         headers,
