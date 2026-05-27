@@ -14,6 +14,14 @@ exports.handler = async (event) => {
   try {
     const { paymentMethodId, email, name } = JSON.parse(event.body);
 
+    if (!email || !paymentMethodId) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Missing email or payment method.' })
+      };
+    }
+
     // Create or find customer
     const customers = await stripe.customers.list({ email, limit: 1 });
     let customer;
@@ -25,7 +33,7 @@ exports.handler = async (event) => {
 
     // Create PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: 100, // $147.00 in cents
+      amount: 100,
       currency: 'usd',
       customer: customer.id,
       payment_method: paymentMethodId,
@@ -53,9 +61,9 @@ exports.handler = async (event) => {
     }
 
     if (paymentIntent.status === 'succeeded') {
-      // Notify GHL workflow — creates contact + sends confirmation email
-      const firstName = name.split(' ')[0];
-      const lastName = name.split(' ').slice(1).join(' ') || '';
+      const firstName = (name || '').split(' ')[0] || '';
+      const lastName = (name || '').split(' ').slice(1).join(' ') || '';
+
       try {
         await fetch('https://services.leadconnectorhq.com/hooks/Hk9YnLAZCME5Y2kjNRp4/webhook-trigger/b327d5c4-1e71-468f-ac8d-cad93d465da5', {
           method: 'POST',
