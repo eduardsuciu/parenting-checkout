@@ -307,13 +307,16 @@ paymentRequest.canMakePayment().then(result => {
 
 paymentRequest.on('paymentmethod', async (ev) => {
   try {
+    const payerEmail = ev.payerEmail || '';
+    const payerName = ev.payerName || '';
+
     const res = await fetch('/.netlify/functions/create-payment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         paymentMethodId: ev.paymentMethod.id,
-        email: ev.payerEmail,
-        name: ev.payerName
+        email: payerEmail,
+        name: payerName
       })
     });
     const result = await res.json();
@@ -326,6 +329,23 @@ paymentRequest.on('paymentmethod', async (ev) => {
     if (result.requiresAction) {
       const { error } = await stripe.confirmCardPayment(result.clientSecret);
       if (error) { ev.complete('fail'); return; }
+    }
+
+    // Send to GHL webhook with Apple Pay email
+    try {
+      await fetch('https://services.leadconnectorhq.com/hooks/Hk9YnLAZCME5Y2kjNRp4/webhook-trigger/b327d5c4-1e71-468f-ac8d-cad93d465da5', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: payerEmail,
+          name: payerName,
+          firstName: payerName.split(' ')[0] || payerName,
+          lastName: payerName.split(' ').slice(1).join(' ') || '',
+          source: 'apple_pay'
+        })
+      });
+    } catch(webhookErr) {
+      // Don't block redirect if webhook fails
     }
 
     ev.complete('success');
